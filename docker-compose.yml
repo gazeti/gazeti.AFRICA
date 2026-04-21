@@ -1,0 +1,117 @@
+version: "3.7"
+
+services:
+  postgres:
+    image: postgres:10
+    platform: linux/amd64
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: aleph
+      POSTGRES_PASSWORD: aleph
+      POSTGRES_DB: aleph
+    ports:
+      - "5433:5432"
+
+  elasticsearch:
+    build:
+      context: ./elasticsearch
+      platforms:
+        - linux/amd64
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+
+  redis:
+    image: redis:6-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    platform: linux/amd64
+    restart: unless-stopped
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  ui:
+    image: alephdata/aleph-ui:3.0.3
+    platform: linux/amd64
+    restart: unless-stopped
+    working_dir: /alephui
+    command: npm start
+    ports:
+      - "4001:4001"
+    environment:
+      REACT_APP_API_ENDPOINT: http://localhost:8001/api/2/
+      PORT: 4001
+      BROWSER: none
+
+  web:
+    image: alephdata/aleph:3.0.3
+    platform: linux/amd64
+    restart: unless-stopped
+    command: gunicorn -w 4 -b 0.0.0.0:5000 --name aleph --log-level info --timeout 600 aleph.manage:app
+    depends_on:
+      - postgres
+      - elasticsearch
+      - rabbitmq
+    ports:
+      - "8001:5000"
+    networks:
+      default:
+        aliases:
+          - api
+    env_file:
+      - aleph.env
+    volumes:
+      - archive_data:/data
+
+  worker:
+    image: alephdata/aleph:3.0.3
+    platform: linux/amd64
+    restart: unless-stopped
+    command: celery -A aleph.queues -c 2 -l INFO worker --pidfile /tmp/celery.pid -E
+    depends_on:
+      - postgres
+      - elasticsearch
+      - rabbitmq
+    env_file:
+      - aleph.env
+    volumes:
+      - archive_data:/data
+
+  ingest-file:
+    image: alephdata/ingest-file:latest
+    platform: linux/amd64
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+      - redis
+    env_file:
+      - aleph.env
+    volumes:
+      - archive_data:/data
+
+  convert-document:
+    image: alephdata/convert-document:latest
+    platform: linux/amd64
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  es_data:
+  rabbitmq_data:
+  archive_data:
+  redis_data:
