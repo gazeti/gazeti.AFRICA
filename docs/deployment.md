@@ -133,21 +133,17 @@ dokku proxy:ports-set gazeti-convert http:80:3000
 
 ## 8. Deploy
 
-Add Dokku remotes and push each app. Since all services share one repo, Dokku will build only the Dockerfile for each app:
+Images are built and pushed to DockerHub by CI. Deploy each app by pulling the image directly:
 
 ```bash
-git remote add dokku-web dokku@<server>:gazeti-web
-git remote add dokku-ui dokku@<server>:gazeti-ui
-git remote add dokku-worker dokku@<server>:gazeti-worker
-git remote add dokku-beat dokku@<server>:gazeti-beat
-git remote add dokku-convert dokku@<server>:gazeti-convert
-
-git push dokku-web feat/aleph-3x-deployment-config:master
-git push dokku-ui feat/aleph-3x-deployment-config:master
-git push dokku-worker feat/aleph-3x-deployment-config:master
-git push dokku-beat feat/aleph-3x-deployment-config:master
-git push dokku-convert feat/aleph-3x-deployment-config:master
+dokku git:from-image gazeti-web codeforafrica/gazeti-web:3.0.3
+dokku git:from-image gazeti-ui codeforafrica/gazeti-ui:3.0.3
+dokku git:from-image gazeti-worker codeforafrica/gazeti-worker:3.0.3
+dokku git:from-image gazeti-beat codeforafrica/gazeti-beat:3.0.3
+dokku git:from-image gazeti-convert codeforafrica/gazeti-convert:3.0.3
 ```
+
+To deploy a newer image, update the tag and re-run the relevant `git:from-image` command.
 
 ## 9. Run database migrations
 
