@@ -4,15 +4,13 @@ This guide covers deploying gazeti.AFRICA on a Ubuntu server using [Dokku](https
 
 ## Architecture
 
-| Dokku app | Dockerfile | Description |
+| Dokku app | DockerHub image | Description |
 |---|---|---|
-| `gazeti-web` | `gazeti-api/Dockerfile` | Aleph API (gunicorn) |
-| `gazeti-ui` | `gazeti-ui/Dockerfile` | Aleph UI (React, served by nginx) |
-| `gazeti-worker` | `gazeti-worker/Dockerfile` | Celery task worker |
-| `gazeti-beat` | `gazeti-beat/Dockerfile` | Celery beat scheduler |
-| `gazeti-convert` | `gazeti-convert/Dockerfile` | Document conversion service |
-
-Each Dockerfile uses the repo root as its build context so that `patches/sitecustomize.py` is accessible to all services that need it.
+| `gazeti-web` | `codeforafrica/gazeti-web:3.0.3` | Aleph API (gunicorn) |
+| `gazeti-ui` | `codeforafrica/gazeti-ui:3.0.3` | Aleph UI (React) |
+| `gazeti-worker` | `codeforafrica/gazeti-worker:3.0.3` | Celery task worker |
+| `gazeti-beat` | `codeforafrica/gazeti-beat:3.0.3` | Celery beat scheduler |
+| `gazeti-convert` | `codeforafrica/gazeti-convert:3.0.3` | Document conversion service |
 
 ## Prerequisites
 
@@ -66,19 +64,7 @@ dokku rabbitmq:link gazeti-mq gazeti-worker
 dokku rabbitmq:link gazeti-mq gazeti-beat
 ```
 
-## 5. Point each app to its Dockerfile
-
-Dokku looks for `Dockerfile` in the repo root by default. Override this for each app:
-
-```bash
-dokku builder-dockerfile:set gazeti-web dockerfile-path gazeti-api/Dockerfile
-dokku builder-dockerfile:set gazeti-ui dockerfile-path gazeti-ui/Dockerfile
-dokku builder-dockerfile:set gazeti-worker dockerfile-path gazeti-worker/Dockerfile
-dokku builder-dockerfile:set gazeti-beat dockerfile-path gazeti-beat/Dockerfile
-dokku builder-dockerfile:set gazeti-convert dockerfile-path gazeti-convert/Dockerfile
-```
-
-## 6. Configure environment variables
+## 5. Configure environment variables
 
 Set the following on `gazeti-web`, `gazeti-worker`, and `gazeti-beat` (replace placeholders):
 
@@ -106,12 +92,7 @@ dokku config:set gazeti-web \
   C_FORCE_ROOT=true
 ```
 
-Copy the same config to worker and beat:
-
-```bash
-dokku config:set gazeti-worker $(dokku config:export --format shell gazeti-web | grep -v DATABASE_URL | grep -v REDIS_URL | grep -v RABBITMQ_URL)
-dokku config:set gazeti-beat $(dokku config:export --format shell gazeti-web | grep -v DATABASE_URL | grep -v RABBITMQ_URL)
-```
+Set the same vars on `gazeti-worker` and `gazeti-beat` (they share the same config as `gazeti-web`).
 
 For `gazeti-ui`, set only:
 
@@ -120,7 +101,7 @@ dokku config:set gazeti-ui \
   REACT_APP_API_ENDPOINT=https://api.gazeti.africa/api/2/
 ```
 
-## 7. Configure domains and ports
+## 6. Configure domains and ports
 
 ```bash
 dokku domains:set gazeti-web api.gazeti.africa
@@ -131,7 +112,7 @@ dokku proxy:ports-set gazeti-ui http:80:4001
 dokku proxy:ports-set gazeti-convert http:80:3000
 ```
 
-## 8. Deploy
+## 7. Deploy
 
 Images are built and pushed to DockerHub by CI. Deploy each app by pulling the image directly:
 
@@ -145,7 +126,7 @@ dokku git:from-image gazeti-convert codeforafrica/gazeti-convert:3.0.3
 
 To deploy a newer image, update the tag and re-run the relevant `git:from-image` command.
 
-## 9. Run database migrations
+## 8. Run database migrations
 
 Run once after the first deploy:
 
@@ -153,7 +134,7 @@ Run once after the first deploy:
 dokku run gazeti-web aleph upgrade
 ```
 
-## 10. Enable HTTPS (Let's Encrypt)
+## 9. Enable HTTPS (Let's Encrypt)
 
 ```bash
 dokku letsencrypt:set --global email support@codeforafrica.org
@@ -164,7 +145,7 @@ dokku letsencrypt:cron-job --add
 
 ## S3 storage and the archive path patch
 
-The `gazeti-api` and `gazeti-worker` images include `patches/sitecustomize.py`, loaded automatically at Python startup via `PYTHONPATH=/opt/gazeti-patches`.
+The `gazeti-web` and `gazeti-worker` images include `patches/sitecustomize.py`, loaded automatically at Python startup via `PYTHONPATH=/opt/gazeti-patches`.
 
 This patch prepends `ALEPH_ARCHIVE_PATH` (e.g. `aleph`) to every S3 object key that Aleph builds. Aleph 3.x ignores this setting natively, which means without the patch it would read and write files at the wrong path in the S3 bucket. The patch is a no-op when `ALEPH_ARCHIVE_TYPE=file`.
 
