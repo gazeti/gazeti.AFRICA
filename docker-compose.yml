@@ -28,6 +28,11 @@ services:
       - es_data:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:6-alpine
@@ -64,9 +69,12 @@ services:
     restart: unless-stopped
     command: gunicorn -w 4 -b 0.0.0.0:5000 --name aleph --log-level info --timeout 600 aleph.manage:app
     depends_on:
-      - postgres
-      - elasticsearch
-      - rabbitmq
+      postgres:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
     ports:
       - "8001:5000"
     networks:
@@ -84,9 +92,12 @@ services:
     restart: unless-stopped
     command: celery -A aleph.queues -c 2 -l INFO worker --pidfile /tmp/celery.pid -E
     depends_on:
-      - postgres
-      - elasticsearch
-      - rabbitmq
+      postgres:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
     env_file:
       - aleph.env
     volumes:

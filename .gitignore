@@ -1,6 +1,7 @@
 _site/
 .sass-cache/
 .jekyll-metadata
+# must be named aleph.env — referenced explicitly by env_file in docker-compose.yml
 aleph.env
 *.sql.gz
 init-db/

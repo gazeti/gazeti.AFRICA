@@ -14,7 +14,7 @@ This guide covers deploying gazeti.AFRICA on a Ubuntu server using [Dokku](https
 
 ## Prerequisites
 
-- Ubuntu 20.04+ server with Dokku installed
+- Ubuntu 20.04+ server with Dokku installed (22.04 also works; PostgreSQL 11 must be installed via a PPA on 22.04 since the default is PG14)
 - Domain names pointing to the server (`gazeti.africa`, `api.gazeti.africa`)
 - AWS OpenSearch domain (Elasticsearch 6.8 compatible)
 - PostgreSQL 11 (Aleph 3.0.3 requires PG11 — PG12+ removed the `pg_catalog.pg_constraints.consrc` column that SQLAlchemy queries)
@@ -68,6 +68,12 @@ dokku rabbitmq:link gazeti-mq gazeti-beat
 
 Set the following on `gazeti-web`, `gazeti-worker`, and `gazeti-beat` (replace placeholders):
 
+> **Tip:** if you have an `aleph.env` file with the values already filled in, you can set all vars in one shot:
+> ```bash
+> dokku config:set gazeti-web $(cat aleph.env | xargs)
+> ```
+> Repeat for `gazeti-worker` and `gazeti-beat`.
+
 ```bash
 dokku config:set gazeti-web \
   ALEPH_SECRET_KEY=<random-secret> \
@@ -117,11 +123,12 @@ dokku proxy:ports-set gazeti-convert http:80:3000
 Images are built and pushed to DockerHub by CI. Deploy each app by pulling the image directly:
 
 ```bash
-dokku git:from-image gazeti-web codeforafrica/gazeti-web:3.0.3
-dokku git:from-image gazeti-ui codeforafrica/gazeti-ui:3.0.3
-dokku git:from-image gazeti-worker codeforafrica/gazeti-worker:3.0.3
-dokku git:from-image gazeti-beat codeforafrica/gazeti-beat:3.0.3
-dokku git:from-image gazeti-convert codeforafrica/gazeti-convert:3.0.3
+export GAZETI_VERSION=3.0.3
+dokku git:from-image gazeti-web codeforafrica/gazeti-web:${GAZETI_VERSION}
+dokku git:from-image gazeti-ui codeforafrica/gazeti-ui:${GAZETI_VERSION}
+dokku git:from-image gazeti-worker codeforafrica/gazeti-worker:${GAZETI_VERSION}
+dokku git:from-image gazeti-beat codeforafrica/gazeti-beat:${GAZETI_VERSION}
+dokku git:from-image gazeti-convert codeforafrica/gazeti-convert:${GAZETI_VERSION}
 ```
 
 To deploy a newer image, update the tag and re-run the relevant `git:from-image` command.

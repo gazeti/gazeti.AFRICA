@@ -34,33 +34,27 @@ Edit `aleph.env` and fill in the required values (secret key, OAuth credentials,
 The local stack uses Elasticsearch 6.8 with the `analysis-icu` plugin required by Aleph 3.x:
 
 ```bash
-docker-compose build elasticsearch
+docker compose build elasticsearch
 ```
 
 **3. Start all services**
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-Wait for Elasticsearch to be healthy before running the next step:
-
-```bash
-until curl -sf http://localhost:9200/_cluster/health | grep -q '"status":"green"\|"status":"yellow"'; do
-  echo "Waiting for ES..."; sleep 5
-done
-```
+Elasticsearch must be healthy before running the next step. The compose file includes a healthcheck so the `web` service will wait automatically.
 
 **4. Run database migrations and create ES index**
 
 ```bash
-docker-compose exec web aleph upgrade
+docker compose exec web aleph upgrade
 ```
 
 **5. Create an admin user**
 
 ```bash
-docker-compose exec web aleph createuser --admin admin@example.com
+docker compose exec web aleph createuser --admin admin@example.com
 ```
 
 **6. Access the UI**
@@ -77,6 +71,6 @@ If you switch to `ALEPH_ARCHIVE_TYPE=s3`, the `api` and `worker` services load `
 ## Stopping
 
 ```bash
-docker-compose down        # keep volumes
-docker-compose down -v     # also delete all data
+docker compose down        # keep volumes
+docker compose down -v     # also delete all data
 ```
